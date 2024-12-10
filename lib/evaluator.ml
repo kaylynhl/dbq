@@ -44,7 +44,24 @@ end = struct
         | Some t -> t
       end
     | Load f -> begin
-        try Csv.load f with Sys_error msg -> raise (RuntimeError msg)
+        try
+          let table = Csv.load f in
+          match table with
+          | [] -> raise (RuntimeError "CSV file is empty.")
+          | header :: rows ->
+              (* Check for non-unique column names *)
+              let unique_headers = List.sort_uniq String.compare header in
+              if List.length unique_headers <> List.length header then
+                raise
+                  (RuntimeError "CSV file has non-unique column names.");
+
+              (* Check for rectangularity *)
+              if not (Csv.is_square table) then
+                raise (RuntimeError "CSV file is not rectangular.");
+
+              table
+        with Sys_error msg ->
+          raise (RuntimeError ("Unable to read file - " ^ msg))
       end
 end
 
