@@ -1,0 +1,4 @@
+(test
+ (name test_lab12)
+ (deps (glob_files_rec ../data/*))
+ )

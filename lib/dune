@@ -1,0 +1,9 @@
+(library
+ (name lab12)
+ (libraries csv))
+
+(menhir
+ (modules parser)
+ (flags --strict --no-dollars))
+
+(ocamllex lexer)
