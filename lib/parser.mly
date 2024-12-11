@@ -23,14 +23,8 @@ command:
 table_expr:
   | v = VAR { Var v }
   | LOAD; f = STRING_LITERAL; { Load f }
-  | PROJECT; names = column_names; FROM; t = table_expr { Project (names, t) }
-  ;
+  | PROJECT; LBRACKET names = names_list; RBRACKET; FROM t = table_expr { Project (names, t) }
 
-column_names:
-  | LBRACKET names = nonempty_list(name); RBRACKET { names }
-  ;
-
-name:
-  | n = VAR { n }
-  ;
-  
+names_list:
+  | name = STRING_LITERAL { [name] }
+  | name = STRING_LITERAL; SEMICOLON names = names_list { name :: names }
