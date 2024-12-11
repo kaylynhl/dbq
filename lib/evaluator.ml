@@ -136,6 +136,19 @@ end = struct
             List.append header1 (List.filter (fun col -> col <> key) header2)
           in
           new_header :: List.filter (fun row -> row <> []) joined_rows
+    | Rename (old_name, new_name, t) ->
+        let table = eval_texpr t in
+        let header = List.hd table in
+        (* Ensure uniqueness of column names *)
+        if List.mem new_name header then
+          raise (RuntimeError ("Column " ^ new_name ^ " already exists."))
+        else
+          let new_header =
+            List.map
+              (fun col -> if col = old_name then new_name else col)
+              header
+          in
+          new_header :: List.tl table
 end
 
 let eval_prog prog =

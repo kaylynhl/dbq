@@ -11,6 +11,8 @@ let not_dquote = [^'"']
 let string_literal = dquote (not_dquote* as the_string) dquote
 let name = ['a'-'z' 'A'-'Z' '0'-'9' '_']+  
 let column_names = "[" white* (name (white* ";" white* name)*)? white* "]"
+let lparen = "("
+let rparen = ")"
 
 rule read =
   parse
@@ -20,7 +22,9 @@ rule read =
   | ":=" { ASSIGN }
   | ";" { SEMICOLON }
   | "[" { LBRACKET } 
-  | "]" { RBRACKET }  
+  | "]" { RBRACKET } 
+  | "(" { LPAR }
+  | ")" { RPAR } 
   | "load" { LOAD } 
   | "print" { PRINT }   
   | "save" { SAVE }
@@ -29,5 +33,7 @@ rule read =
   | "join" { JOIN }
   | "with" { WITH }
   | "on" { ON }
+  | "rename" { RENAME }
+  | "to" { TO }
   | var { VAR (Lexing.lexeme lexbuf) }    
   | string_literal { STRING_LITERAL the_string }

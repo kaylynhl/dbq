@@ -2,9 +2,9 @@
     open Ast
 %}
 
-%token EOF ASSIGN SEMICOLON LOAD PRINT SAVE PROJECT FROM JOIN ON WITH
+%token EOF ASSIGN SEMICOLON LOAD PRINT SAVE PROJECT FROM JOIN ON WITH RENAME TO 
 %token <string> VAR STRING_LITERAL
-%token LBRACKET RBRACKET
+%token LBRACKET RBRACKET RPAR LPAR
 
 %start <Ast.program> prog 
 
@@ -25,7 +25,8 @@ table_expr:
   | LOAD; f = STRING_LITERAL; { Load f }
   | PROJECT; LBRACKET names = names_list; RBRACKET; FROM t = table_expr { Project (names, t) }
   | JOIN; t1 = table_expr; WITH; t2 = table_expr; ON; key = STRING_LITERAL { Join (t1, t2, key) }
-  
+  | LPAR; t = table_expr; RPAR { t } 
+  | RENAME; old_name = STRING_LITERAL; TO; new_name = STRING_LITERAL; FROM t = table_expr { Rename (old_name, new_name, t) }
 
 names_list:
   | name = STRING_LITERAL { [name] }

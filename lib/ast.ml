@@ -3,6 +3,7 @@ type table_expr =
   | Load of string
   | Project of string list * table_expr
   | Join of table_expr * table_expr * string
+  | Rename of string * string * table_expr 
 
 type command =
   | Assign of string * table_expr
