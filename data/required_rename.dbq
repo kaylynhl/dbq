@@ -1,1 +1,6 @@
-print (rename "ID" to "Numbers" from (load "data/chem_grades.csv"));
+a := load "data/chem_grades.csv";
+print a;
+b := rename "ID" to "RENAMED" from a;
+print b;
+
+
