@@ -101,6 +101,41 @@ end = struct
         let new_table = List.map project_row rows in
         let new_header = List.map fst valid_names_with_indices in
         new_header :: new_table
+    | Join (t1, t2, key) ->
+        let table1 = eval_texpr t1 in
+        let table2 = eval_texpr t2 in
+        let header1 = List.hd table1 in
+        let header2 = List.hd table2 in
+        if not (List.mem key header1) then
+          raise
+            (RuntimeError ("Key column " ^ key ^ " not found in first table"))
+        else if not (List.mem key header2) then
+          raise
+            (RuntimeError ("Key column " ^ key ^ " not found in second table"))
+        else
+          let find_index header key =
+            match List.find_index (( = ) key) header with
+            | Some index -> index
+            | None ->
+                raise (RuntimeError ("Key " ^ key ^ " not found in header"))
+          in
+          let key_index1 = find_index header1 key in
+          let key_index2 = find_index header2 key in
+          let join_row row1 row2 =
+            if List.nth row1 key_index1 = List.nth row2 key_index2 then
+              List.append row1 (List.filteri (fun i _ -> i <> key_index2) row2)
+            else []
+          in
+          let joined_rows =
+            List.flatten
+              (List.map
+                 (fun row1 -> List.map (join_row row1) (List.tl table2))
+                 (List.tl table1))
+          in
+          let new_header =
+            List.append header1 (List.filter (fun col -> col <> key) header2)
+          in
+          new_header :: List.filter (fun row -> row <> []) joined_rows
 end
 
 let eval_prog prog =

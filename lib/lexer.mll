@@ -19,12 +19,15 @@ rule read =
   | '\n' { Lexing.new_line lexbuf; read lexbuf }
   | ":=" { ASSIGN }
   | ";" { SEMICOLON }
+  | "[" { LBRACKET } 
+  | "]" { RBRACKET }  
   | "load" { LOAD } 
   | "print" { PRINT }   
   | "save" { SAVE }
   | "project" { PROJECT }
   | "from" { FROM }
-  | "[" { LBRACKET } 
-  | "]" { RBRACKET }  
+  | "join" { JOIN }
+  | "with" { WITH }
+  | "on" { ON }
   | var { VAR (Lexing.lexeme lexbuf) }    
   | string_literal { STRING_LITERAL the_string }
