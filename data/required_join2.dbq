@@ -1,0 +1,4 @@
+a := load "data/join2_table1.csv";
+b := load "data/join2_table2.csv";
+b := join a with b on "Department ID";
+print b;
