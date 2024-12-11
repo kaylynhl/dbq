@@ -24,8 +24,8 @@ table_expr:
   | v = VAR { Var v }
   | LOAD; f = STRING_LITERAL; { Load f }
   | PROJECT; LBRACKET names = names_list; RBRACKET; FROM t = table_expr { Project (names, t) }
-  | JOIN; t1 = table_expr; WITH; t2 = table_expr; ON; key = VAR { Join (t1, t2, key) }
-  ;
+  | JOIN; t1 = table_expr; WITH; t2 = table_expr; ON; key = STRING_LITERAL { Join (t1, t2, key) }
+  
 
 names_list:
   | name = STRING_LITERAL { [name] }
