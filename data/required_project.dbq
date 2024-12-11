@@ -1,0 +1,3 @@
+a := load "data/chem_grades.csv";
+b := project ["ID"; "hw2"; "hw1"] from a;
+print b;

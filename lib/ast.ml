@@ -1,6 +1,7 @@
 type table_expr =
   | Var of string
   | Load of string
+  | Project of string list * table_expr
 
 type command =
   | Assign of string * table_expr

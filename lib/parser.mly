@@ -1,15 +1,11 @@
-(* The block of code below is the _header_. It will literally be
-   copied into the generated "parser.ml" file. Because of the [open],
-   all the constructor names in [Ast] are in scope inside of all
-   the blocks of code in curly braces [{ ... }] at the end of the file. *)
 %{
     open Ast
 %}
 
-(* The next two lines declare the tokens, i.e., the meaningful "word"
-   in the language we are implementing. *)
-%token EOF ASSIGN SEMICOLON LOAD PRINT SAVE
+(* tokens *)
+%token EOF ASSIGN SEMICOLON LOAD PRINT SAVE PROJECT FROM
 %token <string> VAR STRING_LITERAL
+%token LBRACKET RBRACKET
 
 (* The next line declares how to start parsing the language: it says to
    use the rule named "prog" (which is below) and promises that the output
@@ -17,8 +13,6 @@
    so that it can generate a parsing function of the right type. *)
 %start <Ast.program> prog 
 
-(* The double-percent sign tells Menhir that the rest of the file contains
-   the grammatical rules of the language. *)
 %%
 
 (* These are the grammatical rules of the language. They are similar to BNF
@@ -39,4 +33,14 @@ command:
 table_expr:
   | v = VAR { Var v }
   | LOAD; f = STRING_LITERAL; { Load f }
+  | PROJECT; names = column_names; FROM; t = table_expr { Project (names, t) }
   ;
+
+column_names:
+  | LBRACKET names = nonempty_list(name); RBRACKET { names }
+  ;
+
+name:
+  | n = VAR { n }
+  ;
+  

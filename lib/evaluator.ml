@@ -52,8 +52,7 @@ end = struct
               (* Check for non-unique column names *)
               let unique_headers = List.sort_uniq String.compare header in
               if List.length unique_headers <> List.length header then
-                raise
-                  (RuntimeError "CSV file has non-unique column names.");
+                raise (RuntimeError "CSV file has non-unique column names.");
 
               (* Check for rectangularity *)
               if not (Csv.is_square table) then
@@ -63,6 +62,45 @@ end = struct
         with Sys_error msg ->
           raise (RuntimeError ("Unable to read file - " ^ msg))
       end
+    | Project (names, t) ->
+        let table = eval_texpr t in
+        let header = List.hd table in
+
+        let validate_column names =
+          let unique_names = List.sort_uniq String.compare names in
+          if List.length unique_names <> List.length names then
+            raise (RuntimeError "Non-unique column names.")
+          else
+            List.fold_left
+              (fun acc name ->
+                match List.find_opt (fun col -> col = name) header with
+                | Some _ ->
+                    (* Get index of the column *)
+                    let idx =
+                      List.fold_left
+                        (fun acc (col, i) -> if col = name then i else acc)
+                        (-1)
+                        (List.mapi (fun i col -> (col, i)) header)
+                    in
+                    (name, idx) :: acc
+                | None ->
+                    raise (RuntimeError ("Column " ^ name ^ " does not exist.")))
+              [] names
+            |> List.rev
+        in
+
+        let valid_names_with_indices = validate_column names in
+
+        let project_row row =
+          List.map
+            (fun (name, idx) -> List.nth row idx)
+            valid_names_with_indices
+        in
+
+        let rows = List.tl table in
+        let new_table = List.map project_row rows in
+        let new_header = List.map fst valid_names_with_indices in
+        new_header :: new_table
 end
 
 let eval_prog prog =
