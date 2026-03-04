@@ -1,3 +1,7 @@
 _build/
 _opam/
 gitlog.txt
+.DS_Store
+*.swp
+*.swo
+*~

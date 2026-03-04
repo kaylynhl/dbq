@@ -29,6 +29,17 @@ let ensure_unique_names names ~err_msg =
   let unique_names = List.sort_uniq String.compare names in
   if List.length unique_names <> List.length names then runtime_error err_msg
 
+let build_join_index ~key_index rows =
+  let index = StringTable.create default_size in
+  List.iter
+    (fun row ->
+      let key = List.nth row key_index in
+      let prev = Option.value ~default:[] (StringTable.find_opt index key) in
+      StringTable.replace index key (row :: prev))
+    rows;
+  StringTable.iter (fun key rs -> StringTable.replace index key (List.rev rs)) index;
+  index
+
 (* A functor that can be used to evaluate a program. Every program should be
    evaluated with a distinct program evaluator, otherwise, their side effects
    could interfere. *)
@@ -49,7 +60,7 @@ end = struct
 
   and eval_command = function
     | Print t -> Csv.print_readable (eval_texpr t)
-    | Assign (x, t) -> StringTable.add state x (eval_texpr t)
+    | Assign (x, t) -> StringTable.replace state x (eval_texpr t)
     | Save (t, f) -> (
         try t |> eval_texpr |> Csv.save f
         with Sys_error msg -> runtime_error msg)
@@ -103,35 +114,26 @@ end = struct
         let table2 = eval_texpr t2 in
         let header1, rows1 = split_table table1 in
         let header2, rows2 = split_table table2 in
-
-        if not (List.mem key header1) then
-          runtime_error ("Key column " ^ key ^ " not found in first table")
-        else if not (List.mem key header2) then
-          runtime_error ("Key column " ^ key ^ " not found in second table")
-        else
-          let key_index1 =
-            find_index_exn header1 key
-              ~not_found_msg:("Key " ^ key ^ " not found in header")
-          in
-          let key_index2 =
-            find_index_exn header2 key
-              ~not_found_msg:("Key " ^ key ^ " not found in header")
-          in
-          let join_row_if_match row1 row2 =
-            if List.nth row1 key_index1 = List.nth row2 key_index2 then
-              Some
-                (List.append row1 (List.filteri (fun i _ -> i <> key_index2) row2))
-            else None
-          in
-          let joined_rows =
-            List.concat_map
-              (fun row1 -> List.filter_map (join_row_if_match row1) rows2)
-              rows1
-          in
-          let new_header =
-            List.append header1 (List.filter (fun col -> col <> key) header2)
-          in
-          new_header :: joined_rows
+        let key_index1 =
+          find_index_exn header1 key
+            ~not_found_msg:("Key column " ^ key ^ " not found in first table")
+        in
+        let key_index2 =
+          find_index_exn header2 key
+            ~not_found_msg:("Key column " ^ key ^ " not found in second table")
+        in
+        let index2 = build_join_index ~key_index:key_index2 rows2 in
+        let join_with_matches row1 =
+          let key_val = List.nth row1 key_index1 in
+          let matches = Option.value ~default:[] (StringTable.find_opt index2 key_val) in
+          List.map
+            (fun row2 ->
+              List.append row1 (List.filteri (fun i _ -> i <> key_index2) row2))
+            matches
+        in
+        let joined_rows = List.concat_map join_with_matches rows1 in
+        let new_header = List.append header1 (List.filter (fun col -> col <> key) header2) in
+        new_header :: joined_rows
     | Rename (old_name, new_name, t) ->
         let table = eval_texpr t in
         let header, rows = split_table table in

@@ -1,26 +1,68 @@
 # dbquery
 
-`dbquery` is a small OCaml package and CLI for parsing and evaluating a query
-language over CSV-backed tables.
+`dbquery` is a small OCaml library + CLI that parses and evaluates a DSL for
+CSV-backed tables.
 
-## Why this is interesting
+## What it does
 
-- Implements a complete language pipeline: lexer, parser, AST, and evaluator.
-- Enforces runtime table invariants (non-empty, rectangular CSVs, unique headers).
-- Includes deterministic tests for syntax, runtime errors, and data transforms.
-- Demonstrates a clean Dune layout for a reusable library plus executable.
+- Parses a query language with assignments and table expressions.
+- Evaluates programs left-to-right with mutable variable bindings.
+- Supports `load`, `project`, `join`, `rename`, `print`, and `save`.
+- Validates CSV/runtime invariants with explicit `RuntimeError` messages.
+- Uses a hash-indexed join implementation for faster key joins.
 
-## Build, run, and test
+## Requirements
+
+- OCaml
+- Dune (`>= 3.16`)
+- `csv` library
+- `menhir`
+
+## Build and run
 
 ```sh
 dune build
-dune exec dbquery -- data/test1.dbq
+```
+
+Run a sample program:
+
+```sh
+dune exec dbquery -- data/test2.dbq
+```
+
+Run tests:
+
+```sh
 dune test
 ```
 
-## Example usage
+## Language quick reference
 
-Create a program file:
+Program shape:
+
+```text
+<command>; <command>; ...
+```
+
+Commands:
+
+- Assignment: `x := <table_expr>;`
+- Print: `print <table_expr>;`
+- Save: `save <table_expr> "path/to/file.csv";`
+
+Table expressions:
+
+- Variable: `x`
+- Load CSV: `load "data/chem_grades.csv"`
+- Project columns:
+  `project ["ID"; "hw2"; "hw1"] from x`
+- Join on key:
+  `join a with b on "ID"`
+- Rename column:
+  `rename "old" to "new" from x`
+- Parenthesized expression: `(<table_expr>)`
+
+## Example
 
 ```text
 a := load "data/chem_grades.csv";
@@ -34,12 +76,24 @@ Run it:
 dune exec dbquery -- ./example.dbq
 ```
 
-## Design decisions
+## Runtime behavior and guarantees
 
-- Programs execute left-to-right with mutable variable bindings.
-- `project` preserves requested column order and rejects duplicate column names.
-- `join` is an inner join on key equality and emits the key column once.
-- Runtime errors are reported as explicit `RuntimeError` messages from the API.
+- Loaded CSVs must be non-empty.
+- Loaded CSVs must be rectangular.
+- Loaded CSV headers must be unique.
+- `project` requires requested columns to exist and be unique in the list.
+- `join` is an inner join on equality and emits the key column once.
+- `join` preserves deterministic row order and indexes the right table by key.
+- `rename` fails if the target column name already exists.
 
-Note: Originally written for coursework and later revisited to improve
-structure, tests, and documentation.
+## Project layout
+
+- `lib/`: AST, lexer/parser frontend, evaluator.
+- `bin/main.ml`: CLI entrypoint.
+- `test/`: deterministic parser/runtime/integration tests.
+- `data/`: sample CSV inputs and `.dbq` programs.
+
+## Notes
+
+Originally written for coursework and then cleaned up with stronger tests,
+clearer invariants, and evaluator optimizations.
