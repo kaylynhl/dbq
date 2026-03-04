@@ -63,7 +63,11 @@ end = struct
     | Load f -> (
         try
           let table = Csv.load f in
-          let header, _ = split_table table in
+          let header =
+            match table with
+            | [] -> runtime_error "CSV file is empty."
+            | header :: _ -> header
+          in
 
           (* Check for non-unique column names. *)
           ensure_unique_names header ~err_msg:"CSV file has non-unique column names.";

@@ -1,4 +1,5 @@
 (test
  (name test_dbquery)
+ (libraries dbquery csv)
  (deps (glob_files_rec ../data/*))
  )
