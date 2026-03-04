@@ -13,18 +13,21 @@ let syntax_error_message lexbuf =
     (Lexing.lexeme lexbuf)
 
 let parse_buffer lexbuf =
-  try
-    let ast = Parser.prog Lexer.read lexbuf in
-    ast
+  try Parser.prog Lexer.read lexbuf
   with Parser.Error -> raise (SyntaxError (syntax_error_message lexbuf))
+
+let with_in_channel filename f =
+  let ic = open_in filename in
+  Fun.protect ~finally:(fun () -> close_in_noerr ic) (fun () -> f ic)
 
 let parse s =
   let lexbuf = Lexing.from_string s in
   parse_buffer lexbuf
 
-let parse_file f =
-  let lexbuf = Lexing.from_channel (open_in f) in
-  parse_buffer lexbuf
+let parse_file filename =
+  with_in_channel filename (fun ic ->
+      let lexbuf = Lexing.from_channel ic in
+      parse_buffer lexbuf)
 
 (* Note: the lexing functions below are provided for convenience in debugging
    and experimentation. Internally, they are never used by the parsing functions
@@ -43,6 +46,7 @@ let lex s =
   let lexbuf = Lexing.from_string s in
   lex_buffer lexbuf
 
-let lex_file f =
-  let lexbuf = Lexing.from_channel (open_in f) in
-  lex_buffer lexbuf
+let lex_file filename =
+  with_in_channel filename (fun ic ->
+      let lexbuf = Lexing.from_channel ic in
+      lex_buffer lexbuf)

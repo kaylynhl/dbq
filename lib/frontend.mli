@@ -7,7 +7,7 @@ val lex : string -> Parser.token list
     token list. *)
 
 val lex_file : string -> Parser.token list
-(** [lex_file] is like [lex], except that the program is read from the file
+(** [lex_file f] is like [lex], except that the program is read from the file
     named [f]. *)
 
 val parse : string -> Ast.program
@@ -17,4 +17,5 @@ val parse : string -> Ast.program
 
 val parse_file : string -> Ast.program
 (** [parse_file f] is like [parse], except that the program is read from the
-    file named [f]. *)
+    file named [f]. The file handle is always closed before returning or
+    raising. *)

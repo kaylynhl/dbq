@@ -10,6 +10,25 @@ let default_size = 16
 (* The type of a table value in the language. *)
 type table = string list list
 
+open Ast
+
+let runtime_error msg = raise (RuntimeError msg)
+
+let split_table = function
+  | [] -> runtime_error "internal invariant violated: empty table"
+  | header :: rows -> (header, rows)
+
+let find_index_exn ~not_found_msg xs target =
+  let rec loop i = function
+    | [] -> runtime_error not_found_msg
+    | x :: tl -> if x = target then i else loop (i + 1) tl
+  in
+  loop 0 xs
+
+let ensure_unique_names names ~err_msg =
+  let unique_names = List.sort_uniq String.compare names in
+  if List.length unique_names <> List.length names then runtime_error err_msg
+
 (* A functor that can be used to evaluate a program. Every program should be
    evaluated with a distinct program evaluator, otherwise, their side effects
    could interfere. *)
@@ -22,8 +41,6 @@ end = struct
      value they contain. *)
   let state : table StringTable.t = StringTable.create default_size
 
-  open Ast
-
   let rec eval_prog = function
     | cmd :: cmds ->
         eval_command cmd;
@@ -35,120 +52,93 @@ end = struct
     | Assign (x, t) -> StringTable.add state x (eval_texpr t)
     | Save (t, f) -> (
         try t |> eval_texpr |> Csv.save f
-        with Sys_error msg -> raise (RuntimeError msg))
+        with Sys_error msg -> runtime_error msg)
 
   and eval_texpr = function
     | Var x -> begin
         match StringTable.find_opt state x with
-        | None -> raise (RuntimeError ("unbound variable: " ^ x))
+        | None -> runtime_error ("unbound variable: " ^ x)
         | Some t -> t
       end
-    | Load f -> begin
+    | Load f -> (
         try
           let table = Csv.load f in
-          match table with
-          | [] -> raise (RuntimeError "CSV file is empty.")
-          | header :: rows ->
-              (* Check for non-unique column names *)
-              let unique_headers = List.sort_uniq String.compare header in
-              if List.length unique_headers <> List.length header then
-                raise (RuntimeError "CSV file has non-unique column names.");
+          let header, _ = split_table table in
 
-              (* Check for rectangularity *)
-              if not (Csv.is_square table) then
-                raise (RuntimeError "CSV file is not rectangular.");
+          (* Check for non-unique column names. *)
+          ensure_unique_names header ~err_msg:"CSV file has non-unique column names.";
 
-              table
-        with Sys_error msg ->
-          raise (RuntimeError ("Unable to read file - " ^ msg))
-      end
+          (* Check for rectangularity. *)
+          if not (Csv.is_square table) then
+            runtime_error "CSV file is not rectangular.";
+
+          table
+        with Sys_error msg -> runtime_error ("Unable to read file - " ^ msg))
     | Project (names, t) ->
         let table = eval_texpr t in
-        let header = List.hd table in
+        let header, rows = split_table table in
 
-        let validate_column names =
-          let unique_names = List.sort_uniq String.compare names in
-          if List.length unique_names <> List.length names then
-            raise (RuntimeError "Non-unique column names.")
-          else
-            List.fold_left
-              (fun acc name ->
-                match List.find_opt (fun col -> col = name) header with
-                | Some _ ->
-                    (* Get index of the column *)
-                    let idx =
-                      List.fold_left
-                        (fun acc (col, i) -> if col = name then i else acc)
-                        (-1)
-                        (List.mapi (fun i col -> (col, i)) header)
-                    in
-                    (name, idx) :: acc
-                | None ->
-                    raise (RuntimeError ("Column " ^ name ^ " does not exist.")))
-              [] names
-            |> List.rev
-        in
+        ensure_unique_names names ~err_msg:"Non-unique column names.";
 
-        let valid_names_with_indices = validate_column names in
-
-        let project_row row =
+        let indices =
           List.map
-            (fun (name, idx) -> List.nth row idx)
-            valid_names_with_indices
+            (fun name ->
+              let idx =
+                find_index_exn header name
+                  ~not_found_msg:("Column " ^ name ^ " does not exist.")
+              in
+              (name, idx))
+            names
         in
-
-        let rows = List.tl table in
-        let new_table = List.map project_row rows in
-        let new_header = List.map fst valid_names_with_indices in
-        new_header :: new_table
+        let project_row row = List.map (fun (_, idx) -> List.nth row idx) indices in
+        let projected_rows = List.map project_row rows in
+        let projected_header = List.map fst indices in
+        projected_header :: projected_rows
     | Join (t1, t2, key) ->
         let table1 = eval_texpr t1 in
         let table2 = eval_texpr t2 in
-        let header1 = List.hd table1 in
-        let header2 = List.hd table2 in
+        let header1, rows1 = split_table table1 in
+        let header2, rows2 = split_table table2 in
+
         if not (List.mem key header1) then
-          raise
-            (RuntimeError ("Key column " ^ key ^ " not found in first table"))
+          runtime_error ("Key column " ^ key ^ " not found in first table")
         else if not (List.mem key header2) then
-          raise
-            (RuntimeError ("Key column " ^ key ^ " not found in second table"))
+          runtime_error ("Key column " ^ key ^ " not found in second table")
         else
-          let find_index header key =
-            match List.find_index (( = ) key) header with
-            | Some index -> index
-            | None ->
-                raise (RuntimeError ("Key " ^ key ^ " not found in header"))
+          let key_index1 =
+            find_index_exn header1 key
+              ~not_found_msg:("Key " ^ key ^ " not found in header")
           in
-          let key_index1 = find_index header1 key in
-          let key_index2 = find_index header2 key in
-          let join_row row1 row2 =
+          let key_index2 =
+            find_index_exn header2 key
+              ~not_found_msg:("Key " ^ key ^ " not found in header")
+          in
+          let join_row_if_match row1 row2 =
             if List.nth row1 key_index1 = List.nth row2 key_index2 then
-              List.append row1 (List.filteri (fun i _ -> i <> key_index2) row2)
-            else []
+              Some
+                (List.append row1 (List.filteri (fun i _ -> i <> key_index2) row2))
+            else None
           in
           let joined_rows =
-            List.flatten
-              (List.map
-                 (fun row1 -> List.map (join_row row1) (List.tl table2))
-                 (List.tl table1))
+            List.concat_map
+              (fun row1 -> List.filter_map (join_row_if_match row1) rows2)
+              rows1
           in
           let new_header =
             List.append header1 (List.filter (fun col -> col <> key) header2)
           in
-          new_header :: List.filter (fun row -> row <> []) joined_rows
+          new_header :: joined_rows
     | Rename (old_name, new_name, t) ->
         let table = eval_texpr t in
-        let header = List.hd table in
-        (* Ensure uniqueness of column names *)
+        let header, rows = split_table table in
+
         if List.mem new_name header then
-          raise (RuntimeError ("Column " ^ new_name ^ " already exists."))
+          runtime_error ("Column " ^ new_name ^ " already exists.")
         else
           let new_header =
-            List.map
-              (fun col -> if col = old_name then new_name else col)
-              header
+            List.map (fun col -> if col = old_name then new_name else col) header
           in
-          new_header :: List.tl table
+          new_header :: rows
 end
 
 let eval_prog prog =

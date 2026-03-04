@@ -9,10 +9,6 @@ let var = letter (letter | '_' | digit)*
 let dquote = '"'
 let not_dquote = [^'"']
 let string_literal = dquote (not_dquote* as the_string) dquote
-let name = ['a'-'z' 'A'-'Z' '0'-'9' '_']+  
-let column_names = "[" white* (name (white* ";" white* name)*)? white* "]"
-let lparen = "("
-let rparen = ")"
 
 rule read =
   parse
