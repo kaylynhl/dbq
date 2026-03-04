@@ -1,4 +1,4 @@
-open Lab12
+open Dbquery
 
 let () =
   if Array.length Sys.argv = 2 then

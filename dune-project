@@ -1,28 +1,28 @@
 (lang dune 3.16)
 
-(name lab12)
+(name dbquery)
 
 (using menhir 3.0)
 
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github kkayl/dbquery))
 
-(authors "Author Name")
+(authors "Kaylyn Lee")
 
-(maintainers "Maintainer Name")
+(maintainers "Kaylyn Lee")
 
-(license LICENSE)
+(license UNLICENSED)
 
-(documentation https://url/to/documentation)
+(documentation https://github.com/kkayl/dbquery#readme)
 
 (package
- (name lab12)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (name dbquery)
+ (synopsis "A small query language for CSV-backed tabular data")
+ (description "A parser and evaluator for a DSL over CSV-backed tables")
  (depends ocaml dune)
  (tags
-  (topics "to describe" your project)))
+  (database csv parser interpreter)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html

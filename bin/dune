@@ -1,4 +1,4 @@
 (executable
- (public_name lab12)
+ (public_name dbquery)
  (name main)
- (libraries lab12))
+ (libraries dbquery))

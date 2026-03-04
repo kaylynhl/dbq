@@ -1,4 +1,4 @@
 (test
- (name test_lab12)
+ (name test_dbquery)
  (deps (glob_files_rec ../data/*))
  )
