@@ -21,7 +21,11 @@
  (name dbquery)
  (synopsis "A small query language for CSV-backed tabular data")
  (description "A parser and evaluator for a DSL over CSV-backed tables")
- (depends ocaml dune)
+ (depends
+  ocaml
+  dune
+  csv
+  menhir)
  (tags
   (database csv parser interpreter)))
 
